@@ -8,10 +8,10 @@ from database import SessionLocal, engine, Base
 
 app = FastAPI()
 
-# Create tables
+# ini basically CREATE TABLE IF NOT EXISTS users
 Base.metadata.create_all(bind=engine)
 
-# Dependency to get DB session
+#soalny tiap request mesti akses ke db kan, jdi ini function buat mrk bisa dpt session sendiri, trus ditutup 
 def get_db():
     db = SessionLocal()
     try:
@@ -30,8 +30,11 @@ def home():
 def add_user(name: str, age: int, db: Session = Depends(get_db)):
     name = name.capitalize()
     initial = name[0]
+    # basically create a new entry gitu, buat di append ke sql table nya
+    # ini eqv nya INSERT INTO users (name, age, initial) VALUES ('Alice', 30, 'A');
     new_user = User(name=name, age=age, initial=initial)
     db.add(new_user)
+    # ini kyk git push gitu, supaya bnrn dbnya ke modify
     db.commit()
     return {"message": f"User {name} added successfully!"}
 
@@ -40,8 +43,11 @@ def add_user(name: str, age: int, db: Session = Depends(get_db)):
 @app.delete("/delete/")
 def delete_user(name: str, db: Session = Depends(get_db)):
     name = name.capitalize()
+    # ini eqv nya SELECT * FROM users WHERE name = 'name' LIMIT 1 <- ini karena kita pake first()
     user = db.query(User).filter(User.name == name).first()
     if user:
+        # trus ini ya lgsg delete
+        # basically DELETE FROM users WHERE id = 'id'
         db.delete(user)
         db.commit()
         return {"message": f"{name} removed successfully!"}
@@ -51,6 +57,7 @@ def delete_user(name: str, db: Session = Depends(get_db)):
 # GET - show current users
 @app.get("/show/")
 def show_list(db: Session = Depends(get_db)):
+    # ini basically yg plg gampng, SELECT * FROM users
     users = db.query(User).all()
     if not users:
         return {"message": "No users in the library."}
@@ -79,5 +86,9 @@ def add_user_from_csv(file: UploadFile = File(...), db: Session = Depends(get_db
 @app.get("/avg/")
 def get_average(db: Session = Depends(get_db)):
     from sqlalchemy import func
+
+    if db.query(User).count() == 0:
+        return {"message": "No users registered."}    
+
     result = db.query(User.initial, func.avg(User.age)).group_by(User.initial).order_by(User.initial).all()
     return {initial: round(avg, 2) for initial, avg in result}
