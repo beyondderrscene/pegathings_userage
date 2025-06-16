@@ -1,3 +1,5 @@
+# docker-compose run web python -m pytest test_main.py -v
+
 import unittest
 from fastapi.testclient import TestClient
 from main import app
